@@ -1,0 +1,1352 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>孤独症情绪识别训练系统</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.19.0/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/face-landmarks-detection@1.0.5/dist/face-landmarks-detection.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#4361EE',
+                        secondary: '#FF6B6B',
+                        success: '#2EC4B6',
+                        warning: '#FFD166',
+                        danger: '#EF4444',
+                        light: '#F7F9FC',
+                        dark: '#2B2D42'
+                    },
+                    fontFamily: {
+                        nunito: ['Nunito', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .text-shadow {
+                text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
+            .card-hover {
+                transition: all 0.3s ease;
+            }
+            .card-hover:hover {
+                transform: translateY(-5px);
+                box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            }
+            .pulse-animation {
+                animation: pulse 2s infinite;
+            }
+            @keyframes pulse {
+                0% { transform: scale(1); }
+                50% { transform: scale(1.05); }
+                100% { transform: scale(1); }
+            }
+            .stage-lock {
+                position: relative;
+            }
+            .stage-lock::after {
+                content: '🔒';
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background-color: rgba(255,255,255,0.7);
+                border-radius: 0.75rem;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 3rem;
+                color: #ccc;
+            }
+        }
+    </style>
+</head>
+<body class="font-nunito bg-gradient-to-br from-light to-blue-50 min-h-screen text-dark overflow-x-hidden">
+    <!-- 导航栏 -->
+    <nav class="bg-white shadow-md fixed w-full z-50 transition-all duration-300">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <i class="fa fa-heart text-secondary text-2xl"></i>
+                <span class="text-xl font-bold text-primary">情绪小达人</span>
+            </div>
+            
+            <div class="hidden md:flex items-center space-x-6">
+                <a href="#" class="font-medium hover:text-primary transition-colors flex items-center">
+                    <i class="fa fa-home mr-1"></i> 首页
+                </a>
+                <a href="#" class="font-medium hover:text-primary transition-colors flex items-center">
+                    <i class="fa fa-question-circle mr-1"></i> 帮助
+                </a>
+                <a href="#" class="font-medium hover:text-primary transition-colors flex items-center">
+                    <i class="fa fa-user mr-1"></i> 关于
+                </a>
+            </div>
+            
+            <button id="sound-toggle" class="mr-2 text-gray-600 hover:text-primary transition-colors">
+                <i class="fa fa-volume-up text-xl"></i>
+            </button>
+            
+            <button id="mobile-menu-btn" class="md:hidden text-gray-600 hover:text-primary transition-colors">
+                <i class="fa fa-bars text-xl"></i>
+            </button>
+        </div>
+        
+        <!-- 移动端菜单 -->
+        <div id="mobile-menu" class="hidden md:hidden bg-white border-t">
+            <div class="container mx-auto px-4 py-2 flex flex-col space-y-3">
+                <a href="#" class="py-2 font-medium hover:text-primary transition-colors">
+                    <i class="fa fa-home mr-1"></i> 首页
+                </a>
+                <a href="#" class="py-2 font-medium hover:text-primary transition-colors">
+                    <i class="fa fa-question-circle mr-1"></i> 帮助
+                </a>
+                <a href="#" class="py-2 font-medium hover:text-primary transition-colors">
+                    <i class="fa fa-user mr-1"></i> 关于
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主内容区 -->
+    <main class="container mx-auto px-4 pt-24 pb-16">
+        <!-- 欢迎界面 -->
+        <section id="welcome-screen" class="py-8 text-center">
+            <div class="max-w-3xl mx-auto">
+                <h1 class="text-[clamp(2rem,5vw,3.5rem)] font-extrabold text-primary mb-6 text-shadow">
+                    情绪小达人训练系统
+                </h1>
+                <p class="text-lg md:text-xl text-gray-600 mb-8">
+                    让我们一起学习认识和表达不同的情绪，成为情绪小专家！
+                </p>
+                
+                <div class="relative rounded-xl overflow-hidden shadow-xl mb-10 max-w-2xl mx-auto">
+                    <img src="https://picsum.photos/seed/emotions/800/400" alt="各种情绪表情展示" class="w-full h-auto">
+                    <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-6">
+                        <p class="text-white text-lg font-semibold">四阶段进阶训练，逐步提升情绪认知能力</p>
+                    </div>
+                </div>
+                
+                <div class="flex flex-col sm:flex-row justify-center gap-4 mb-8">
+                    <button id="start-training-btn" class="bg-primary hover:bg-primary/90 text-white font-bold py-3 px-8 rounded-full text-lg shadow-lg transition-all duration-300 transform hover:scale-105 flex items-center justify-center">
+                        <i class="fa fa-play-circle mr-2"></i> 开始训练
+                    </button>
+                    <button id="view-guide-btn" class="bg-white hover:bg-gray-50 text-primary border-2 border-primary font-bold py-3 px-8 rounded-full text-lg shadow-md transition-all duration-300 flex items-center justify-center">
+                        <i class="fa fa-book mr-2"></i> 查看指南
+                    </button>
+                </div>
+                
+                <div class="flex justify-center items-center text-gray-500">
+                    <i class="fa fa-trophy text-warning mr-2"></i>
+                    <span>已帮助1000+小朋友掌握情绪认知技能</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- 阶段选择界面 -->
+        <section id="stage-selection" class="hidden">
+            <div class="flex justify-between items-center mb-10">
+                <h2 class="text-[clamp(1.8rem,4vw,2.5rem)] font-bold text-primary">选择训练阶段</h2>
+                <button id="back-to-welcome" class="text-gray-600 hover:text-primary transition-colors flex items-center">
+                    <i class="fa fa-arrow-left mr-1"></i> 返回
+                </button>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <!-- 阶段1 -->
+                <div class="stage-card bg-white rounded-xl shadow-xl p-6 transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 cursor-pointer" data-stage="1">
+                    <div class="bg-primary/10 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <span class="text-primary text-2xl font-bold">1</span>
+                    </div>
+                    <h3 class="text-xl font-bold text-center mb-2">基础感知与识别</h3>
+                    <p class="text-gray-600 text-center mb-4">建立基本情绪识别能力</p>
+                    <div class="flex justify-center">
+                        <span class="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
+                            已解锁
+                        </span>
+                    </div>
+                </div>
+                
+                <!-- 阶段2 -->
+                <div class="stage-card bg-white rounded-xl shadow-xl p-6 transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 cursor-pointer stage-lock" data-stage="2">
+                    <div class="bg-info/10 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <span class="text-info text-2xl font-bold">2</span>
+                    </div>
+                    <h3 class="text-xl font-bold text-center mb-2">情境理解与应用</h3>
+                    <p class="text-gray-600 text-center mb-4">理解情绪与情境的关联</p>
+                    <div class="flex justify-center">
+                        <span class="bg-gray-100 text-gray-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
+                            完成阶段1解锁
+                        </span>
+                    </div>
+                </div>
+                
+                <!-- 阶段3 -->
+                <div class="stage-card bg-white rounded-xl shadow-xl p-6 transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 cursor-pointer stage-lock" data-stage="3">
+                    <div class="bg-warning/10 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <span class="text-warning text-2xl font-bold">3</span>
+                    </div>
+                    <h3 class="text-xl font-bold text-center mb-2">社会认知与调节</h3>
+                    <p class="text-gray-600 text-center mb-4">学习社会情境中的情绪管理</p>
+                    <div class="flex justify-center">
+                        <span class="bg-gray-100 text-gray-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
+                            完成阶段2解锁
+                        </span>
+                    </div>
+                </div>
+                
+                <!-- 阶段4 -->
+                <div class="stage-card bg-white rounded-xl shadow-xl p-6 transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 cursor-pointer stage-lock" data-stage="4">
+                    <div class="bg-secondary/10 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <span class="text-secondary text-2xl font-bold">4</span>
+                    </div>
+                    <h3 class="text-xl font-bold text-center mb-2">综合应用与泛化</h3>
+                    <p class="text-gray-600 text-center mb-4">综合运用情绪技能</p>
+                    <div class="flex justify-center">
+                        <span class="bg-gray-100 text-gray-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
+                            完成阶段3解锁
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 游戏选择界面 -->
+        <section id="game-selection" class="hidden">
+            <div class="flex justify-between items-center mb-6">
+                <button id="back-to-stages" class="text-gray-600 hover:text-primary transition-colors flex items-center">
+                    <i class="fa fa-arrow-left mr-1"></i> 返回阶段选择
+                </button>
+                <h2 id="stage-title" class="text-[clamp(1.5rem,3vw,2rem)] font-bold text-primary">第一阶段：基础感知与识别</h2>
+                <div class="w-8"></div> <!-- 占位元素，保持标题居中 -->
+            </div>
+            
+            <p id="stage-description" class="text-gray-600 mb-8 text-center max-w-2xl mx-auto">
+                本阶段将帮助你认识最基本的情绪，学习识别不同的面部表情。
+            </p>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- 游戏1：情绪模仿游戏 -->
+                <div class="game-card bg-white rounded-xl shadow-lg p-4 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 cursor-pointer border-2 border-transparent hover:border-primary" data-game="1">
+                    <div class="h-40 overflow-hidden rounded-lg mb-4">
+                        <img src="https://picsum.photos/seed/emotion1/400/300" alt="情绪模仿游戏预览" class="w-full h-full object-cover">
+                    </div>
+                    <h3 class="text-lg font-bold mb-2">1. 情绪模仿游戏</h3>
+                    <p class="text-gray-600 text-sm mb-3">根据提示做表情，摄像头会识别你的表情是否正确</p>
+                    <div class="flex items-center text-xs text-gray-500">
+                        <i class="fa fa-star text-warning mr-1"></i>
+                        <span>难度：简单</span>
+                    </div>
+                </div>
+                
+                <!-- 游戏2：情绪选择游戏 -->
+                <div class="game-card bg-white rounded-xl shadow-lg p-4 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 cursor-pointer border-2 border-transparent hover:border-primary" data-game="2">
+                    <div class="h-40 overflow-hidden rounded-lg mb-4">
+                        <img src="https://picsum.photos/seed/emotion2/400/300" alt="情绪选择游戏预览" class="w-full h-full object-cover">
+                    </div>
+                    <h3 class="text-lg font-bold mb-2">2. 情绪选择游戏</h3>
+                    <p class="text-gray-600 text-sm mb-3">从多个表情中选择出指定的情绪表情</p>
+                    <div class="flex items-center text-xs text-gray-500">
+                        <i class="fa fa-star text-warning mr-1"></i>
+                        <span>难度：简单</span>
+                    </div>
+                </div>
+                
+                <!-- 游戏3：表情拼图游戏 -->
+                <div class="game-card bg-white rounded-xl shadow-lg p-4 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 cursor-pointer border-2 border-transparent hover:border-primary" data-game="3">
+                    <div class="h-40 overflow-hidden rounded-lg mb-4">
+                        <img src="https://picsum.photos/seed/emotion3/400/300" alt="表情拼图游戏预览" class="w-full h-full object-cover">
+                    </div>
+                    <h3 class="text-lg font-bold mb-2">3. 表情拼图游戏</h3>
+                    <p class="text-gray-600 text-sm mb-3">通过拖拽碎片完成表情拼图，认识面部特征</p>
+                    <div class="flex items-center text-xs text-gray-500">
+                        <i class="fa fa-star text-warning mr-1"></i>
+                        <span>难度：中等</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 游戏1：情绪模仿游戏 -->
+        <section id="game-1" class="hidden">
+            <div class="flex justify-between items-center mb-6">
+                <button class="back-to-games text-gray-600 hover:text-primary transition-colors flex items-center">
+                    <i class="fa fa-arrow-left mr-1"></i> 返回游戏选择
+                </button>
+                <h2 class="text-2xl font-bold text-primary">情绪模仿游戏</h2>
+                <div class="flex items-center">
+                    <span class="text-sm bg-primary/10 text-primary px-3 py-1 rounded-full mr-2">
+                        第 <span id="game1-current-round">1</span>/5 轮
+                    </span>
+                    <div class="flex">
+                        <i class="fa fa-star text-warning"></i>
+                        <i class="fa fa-star-o text-gray-300"></i>
+                        <i class="fa fa-star-o text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div class="bg-white rounded-xl shadow-lg p-6">
+                    <h3 class="text-xl font-bold mb-4 text-center">请做出以下表情</h3>
+                    
+                    <div class="bg-gray-50 rounded-lg p-4 mb-6 text-center">
+                        <div id="emotion-to-imitate" class="inline-block bg-primary/10 rounded-full p-4">
+                            <i class="fa fa-angry text-5xl text-secondary"></i>
+                            <p class="mt-2 text-xl font-bold text-primary">生气</p>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-6">
+                        <h4 class="font-bold mb-2 text-center">表情提示</h4>
+                        <ul class="text-gray-600 space-y-2">
+                            <li class="flex items-start">
+                                <i class="fa fa-check-circle text-success mt-1 mr-2"></i>
+                                <span>眉毛皱起来</span>
+                            </li>
+                            <li class="flex items-start">
+                                <i class="fa fa-check-circle text-success mt-1 mr-2"></i>
+                                <span>嘴巴紧闭或向下</span>
+                            </li>
+                            <li class="flex items-start">
+                                <i class="fa fa-check-circle text-success mt-1 mr-2"></i>
+                                <span>可以握紧拳头</span>
+                            </li>
+                        </ul>
+                    </div>
+                    
+                    <div id="game1-feedback" class="hidden p-4 rounded-lg text-center mb-6">
+                        <!-- 反馈内容将通过JS动态添加 -->
+                    </div>
+                    
+                    <div class="flex justify-center">
+                        <button id="game1-next-btn" class="hidden bg-primary hover:bg-primary/90 text-white font-bold py-2 px-6 rounded-full transition-all">
+                            下一个 <i class="fa fa-arrow-right ml-1"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="bg-white rounded-xl shadow-lg p-6">
+                    <h3 class="text-xl font-bold mb-4 text-center">你的表情</h3>
+                    
+                    <div class="relative rounded-lg overflow-hidden bg-gray-100 mb-4 aspect-video">
+                        <video id="emotion-camera" autoplay playsinline class="w-full h-full object-cover"></video>
+                        <canvas id="camera-canvas" class="absolute top-0 left-0 w-full h-full"></canvas>
+                        
+                        <!-- 加载状态 -->
+                        <div id="camera-loading" class="absolute inset-0 bg-white/80 flex flex-col items-center justify-center">
+                            <div class="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mb-3"></div>
+                            <p>正在准备摄像头...</p>
+                        </div>
+                        
+                        <!-- 未检测到人脸 -->
+                        <div id="no-face-detected" class="absolute inset-0 bg-white/80 flex flex-col items-center justify-center hidden">
+                            <i class="fa fa-meh-o text-5xl text-gray-400 mb-3"></i>
+                            <p>请将脸对准摄像头</p>
+                        </div>
+                        
+                        <!-- 识别中 -->
+                        <div id="recognizing" class="absolute inset-0 bg-black/30 flex items-center justify-center hidden">
+                            <div class="w-10 h-10 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="text-center">
+                        <button id="start-recognition" class="bg-secondary hover:bg-secondary/90 text-white font-bold py-2 px-6 rounded-full transition-all">
+                            开始识别 <i class="fa fa-camera ml-1"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 游戏2：情绪选择游戏 -->
+        <section id="game-2" class="hidden">
+            <div class="flex justify-between items-center mb-6">
+                <button class="back-to-games text-gray-600 hover:text-primary transition-colors flex items-center">
+                    <i class="fa fa-arrow-left mr-1"></i> 返回游戏选择
+                </button>
+                <h2 class="text-2xl font-bold text-primary">情绪选择游戏</h2>
+                <div class="flex items-center">
+                    <span class="text-sm bg-primary/10 text-primary px-3 py-1 rounded-full mr-2">
+                        第 <span id="game2-current-round">1</span>/5 轮
+                    </span>
+                    <div class="flex">
+                        <i class="fa fa-star text-warning"></i>
+                        <i class="fa fa-star-o text-gray-300"></i>
+                        <i class="fa fa-star-o text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="max-w-3xl mx-auto bg-white rounded-xl shadow-lg p-6 md:p-8">
+                <div class="text-center mb-8">
+                    <h3 class="text-xl font-bold mb-2">请找出哪一个是</h3>
+                    <div class="inline-block bg-primary/10 rounded-full px-6 py-3">
+                        <p class="text-2xl font-bold text-primary" id="target-emotion">开心</p>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                    <div class="emotion-option card-hover rounded-lg overflow-hidden cursor-pointer border-2 border-transparent hover:border-primary" data-emotion="happy">
+                        <img src="https://picsum.photos/seed/happy/300/300" alt="开心的表情" class="w-full aspect-square object-cover">
+                        <div class="p-2 text-center font-medium">开心</div>
+                    </div>
+                    <div class="emotion-option card-hover rounded-lg overflow-hidden cursor-pointer border-2 border-transparent hover:border-primary" data-emotion="sad">
+                        <img src="https://picsum.photos/seed/sad/300/300" alt="难过的表情" class="w-full aspect-square object-cover">
+                        <div class="p-2 text-center font-medium">难过</div>
+                    </div>
+                    <div class="emotion-option card-hover rounded-lg overflow-hidden cursor-pointer border-2 border-transparent hover:border-primary" data-emotion="angry">
+                        <img src="https://picsum.photos/seed/angry/300/300" alt="生气的表情" class="w-full aspect-square object-cover">
+                        <div class="p-2 text-center font-medium">生气</div>
+                    </div>
+                    <div class="emotion-option card-hover rounded-lg overflow-hidden cursor-pointer border-2 border-transparent hover:border-primary" data-emotion="scared">
+                        <img src="https://picsum.photos/seed/scared/300/300" alt="害怕的表情" class="w-full aspect-square object-cover">
+                        <div class="p-2 text-center font-medium">害怕</div>
+                    </div>
+                </div>
+                
+                <div id="game2-feedback" class="hidden p-6 rounded-lg text-center mb-6">
+                    <!-- 反馈内容将通过JS动态添加 -->
+                </div>
+                
+                <div class="flex justify-center">
+                    <button id="game2-next-btn" class="hidden bg-primary hover:bg-primary/90 text-white font-bold py-2 px-6 rounded-full transition-all">
+                        下一题 <i class="fa fa-arrow-right ml-1"></i>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- 游戏3：表情拼图游戏 -->
+        <section id="game-3" class="hidden">
+            <div class="flex justify-between items-center mb-6">
+                <button class="back-to-games text-gray-600 hover:text-primary transition-colors flex items-center">
+                    <i class="fa fa-arrow-left mr-1"></i> 返回游戏选择
+                </button>
+                <h2 class="text-2xl font-bold text-primary">表情拼图游戏</h2>
+                <div class="flex items-center">
+                    <span class="text-sm bg-primary/10 text-primary px-3 py-1 rounded-full mr-2">
+                        第 <span id="game3-current-round">1</span>/3 轮
+                    </span>
+                    <div class="flex">
+                        <i class="fa fa-star text-warning"></i>
+                        <i class="fa fa-star-o text-gray-300"></i>
+                        <i class="fa fa-star-o text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div class="lg:col-span-1">
+                    <div class="bg-white rounded-xl shadow-lg p-6 h-full">
+                        <h3 class="text-xl font-bold mb-4 text-center">参考图片</h3>
+                        <div class="bg-gray-50 rounded-lg p-2 mb-6">
+                            <img id="puzzle-reference" src="https://picsum.photos/seed/puzzle1/300/300" alt="拼图参考表情" class="w-full rounded">
+                        </div>
+                        
+                        <h4 class="font-bold mb-3">游戏提示</h4>
+                        <ul class="text-gray-600 space-y-2 mb-6">
+                            <li class="flex items-start">
+                                <i class="fa fa-lightbulb-o text-warning mt-1 mr-2"></i>
+                                <span>观察眼睛和嘴巴的形状</span>
+                            </li>
+                            <li class="flex items-start">
+                                <i class="fa fa-lightbulb-o text-warning mt-1 mr-2"></i>
+                                <span>拖动碎片到正确位置</span>
+                            </li>
+                            <li class="flex items-start">
+                                <i class="fa fa-lightbulb-o text-warning mt-1 mr-2"></i>
+                                <span>完成后会有惊喜哦</span>
+                            </li>
+                        </ul>
+                        
+                        <button id="show-hint" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 rounded-lg transition-all">
+                            提示 <i class="fa fa-question-circle ml-1"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="lg:col-span-2">
+                    <div class="bg-white rounded-xl shadow-lg p-6">
+                        <h3 class="text-xl font-bold mb-4 text-center">请完成拼图</h3>
+                        
+                        <div id="puzzle-container" class="bg-gray-100 rounded-lg p-4 aspect-square max-w-md mx-auto relative">
+                            <!-- 拼图碎片将通过JS动态生成 -->
+                            <div class="absolute inset-0 flex items-center justify-center" id="puzzle-complete-message" style="display: none;">
+                                <div class="text-center bg-white p-6 rounded-xl shadow-lg">
+                                    <i class="fa fa-check-circle text-5xl text-success mb-3"></i>
+                                    <h4 class="text-xl font-bold mb-2">太棒了！</h4>
+                                    <p class="mb-4">你完成了这个表情拼图</p>
+                                    <button id="game3-next-btn" class="bg-primary hover:bg-primary/90 text-white font-bold py-2 px-6 rounded-full transition-all">
+                                        下一个拼图 <i class="fa fa-arrow-right ml-1"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 游戏完成界面 -->
+        <section id="game-complete" class="hidden text-center py-8">
+            <div class="max-w-2xl mx-auto bg-white rounded-xl shadow-xl p-8">
+                <div class="inline-block bg-success/10 rounded-full p-4 mb-6">
+                    <i class="fa fa-trophy text-5xl text-warning"></i>
+                </div>
+                
+                <h2 class="text-2xl md:text-3xl font-bold text-primary mb-4">恭喜你完成训练！</h2>
+                <p class="text-gray-600 mb-6">你在本次训练中表现非常出色，继续加油哦！</p>
+                
+                <div class="mb-8">
+                    <div class="flex justify-center mb-2">
+                        <i class="fa fa-star text-warning text-2xl"></i>
+                        <i class="fa fa-star text-warning text-2xl"></i>
+                        <i class="fa fa-star text-warning text-2xl"></i>
+                    </div>
+                    <p class="text-gray-500">获得了3颗星星！</p>
+                </div>
+                
+                <div class="flex flex-col sm:flex-row justify-center gap-4">
+                    <button id="play-again-btn" class="bg-primary hover:bg-primary/90 text-white font-bold py-3 px-8 rounded-full transition-all">
+                        再玩一次 <i class="fa fa-refresh ml-1"></i>
+                    </button>
+                    <button id="return-to-stages-btn" class="bg-white hover:bg-gray-50 text-primary border-2 border-primary font-bold py-3 px-8 rounded-full transition-all">
+                        返回阶段选择 <i class="fa fa-th-large ml-1"></i>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- 帮助指南界面 -->
+        <section id="guide-screen" class="hidden">
+            <div class="flex justify-between items-center mb-6">
+                <button id="back-from-guide" class="text-gray-600 hover:text-primary transition-colors flex items-center">
+                    <i class="fa fa-arrow-left mr-1"></i> 返回
+                </button>
+                <h2 class="text-2xl font-bold text-primary">使用指南</h2>
+                <div class="w-8"></div> <!-- 占位元素 -->
+            </div>
+            
+            <div class="bg-white rounded-xl shadow-lg p-6 md:p-8">
+                <div class="mb-8">
+                    <h3 class="text-xl font-bold mb-4 flex items-center">
+                        <i class="fa fa-info-circle text-primary mr-2"></i>
+                        关于本系统
+                    </h3>
+                    <p class="text-gray-600 mb-4">
+                        情绪小达人训练系统是专为孤独症儿童设计的情绪认知训练工具，通过四个进阶阶段的12种小游戏，帮助孩子逐步掌握情绪识别和表达能力。
+                    </p>
+                </div>
+                
+                <div class="mb-8">
+                    <h3 class="text-xl font-bold mb-4 flex items-center">
+                        <i class="fa fa-graduation-cap text-primary mr-2"></i>
+                        阶段介绍
+                    </h3>
+                    <div class="space-y-4">
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <h4 class="font-bold text-primary">第一阶段：基础感知与识别</h4>
+                            <p class="text-gray-600 text-sm">学习识别基本情绪（开心、难过、生气、害怕）的面部表情特征。</p>
+                        </div>
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <h4 class="font-bold text-primary">第二阶段：情境理解与应用</h4>
+                            <p class="text-gray-600 text-sm">理解情绪与具体情境的关联，学习区分情绪的强度。</p>
+                        </div>
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <h4 class="font-bold text-primary">第三阶段：社会认知与调节</h4>
+                            <p class="text-gray-600 text-sm">学习在社交场合中识别和管理情绪，理解他人的情绪状态。</p>
+                        </div>
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <h4 class="font-bold text-primary">第四阶段：综合应用与泛化</h4>
+                            <p class="text-gray-600 text-sm">综合运用所学技能，学会表达和转化各种情绪。</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div>
+                    <h3 class="text-xl font-bold mb-4 flex items-center">
+                        <i class="fa fa-gamepad text-primary mr-2"></i>
+                        游戏操作说明
+                    </h3>
+                    <p class="text-gray-600 mb-4">
+                        每个游戏都有简单明确的操作指引，请根据屏幕上的提示进行操作。完成游戏后会获得星星奖励，积累足够的星星可以解锁新的阶段。
+                    </p>
+                    <p class="text-gray-600">
+                        对于需要使用摄像头的游戏，请确保已授予摄像头权限，这将帮助系统识别表情并给予反馈。
+                    </p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- 页脚 -->
+    <footer class="bg-dark text-white py-8">
+        <div class="container mx-auto px-4">
+            <div class="flex flex-col md:flex-row justify-between items-center">
+                <div class="mb-4 md:mb-0">
+                    <div class="flex items-center space-x-2 mb-2">
+                        <i class="fa fa-heart text-secondary"></i>
+                        <span class="font-bold">情绪小达人训练系统</span>
+                    </div>
+                    <p class="text-gray-400 text-sm">专为孤独症儿童设计的情绪认知工具</p>
+                </div>
+                
+                <div class="flex flex-col items-center md:items-end">
+                    <div class="flex space-x-4 mb-2">
+                        <a href="#" class="text-gray-400 hover:text-white transition-colors">
+                            <i class="fa fa-facebook"></i>
+                        </a>
+                        <a href="#" class="text-gray-400 hover:text-white transition-colors">
+                            <i class="fa fa-twitter"></i>
+                        </a>
+                        <a href="#" class="text-gray-400 hover:text-white transition-colors">
+                            <i class="fa fa-instagram"></i>
+                        </a>
+                    </div>
+                    <p class="text-gray-400 text-sm">&copy; 2023 情绪小达人 版权所有</p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // DOM元素
+        const welcomeScreen = document.getElementById('welcome-screen');
+        const stageSelection = document.getElementById('stage-selection');
+        const gameSelection = document.getElementById('game-selection');
+        const guideScreen = document.getElementById('guide-screen');
+        const gameCompleteScreen = document.getElementById('game-complete');
+        
+        // 游戏界面
+        const game1 = document.getElementById('game-1');
+        const game2 = document.getElementById('game-2');
+        const game3 = document.getElementById('game-3');
+        
+        // 导航按钮
+        const startTrainingBtn = document.getElementById('start-training-btn');
+        const viewGuideBtn = document.getElementById('view-guide-btn');
+        const backToWelcome = document.getElementById('back-to-welcome');
+        const backToStages = document.getElementById('back-to-stages');
+        const backFromGuide = document.getElementById('back-from-guide');
+        const returnToStagesBtn = document.getElementById('return-to-stages-btn');
+        const playAgainBtn = document.getElementById('play-again-btn');
+        const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+        const mobileMenu = document.getElementById('mobile-menu');
+        const soundToggle = document.getElementById('sound-toggle');
+        
+        // 声音状态
+        let soundEnabled = true;
+        
+        // 移动端菜单切换
+        mobileMenuBtn.addEventListener('click', () => {
+            mobileMenu.classList.toggle('hidden');
+        });
+        
+        // 声音切换
+        soundToggle.addEventListener('click', () => {
+            soundEnabled = !soundEnabled;
+            if (soundEnabled) {
+                soundToggle.innerHTML = '<i class="fa fa-volume-up text-xl"></i>';
+            } else {
+                soundToggle.innerHTML = '<i class="fa fa-volume-off text-xl"></i>';
+            }
+        });
+        
+        // 页面导航
+        startTrainingBtn.addEventListener('click', () => {
+            welcomeScreen.classList.add('hidden');
+            stageSelection.classList.remove('hidden');
+            playSound('click');
+        });
+        
+        viewGuideBtn.addEventListener('click', () => {
+            welcomeScreen.classList.add('hidden');
+            guideScreen.classList.remove('hidden');
+            playSound('click');
+        });
+        
+        backFromGuide.addEventListener('click', () => {
+            guideScreen.classList.add('hidden');
+            welcomeScreen.classList.remove('hidden');
+            playSound('click');
+        });
+        
+        backToWelcome.addEventListener('click', () => {
+            stageSelection.classList.add('hidden');
+            welcomeScreen.classList.remove('hidden');
+            playSound('click');
+        });
+        
+        backToStages.addEventListener('click', () => {
+            gameSelection.classList.add('hidden');
+            stageSelection.classList.remove('hidden');
+            playSound('click');
+        });
+        
+        returnToStagesBtn.addEventListener('click', () => {
+            gameCompleteScreen.classList.add('hidden');
+            stageSelection.classList.remove('hidden');
+            playSound('click');
+        });
+        
+        playAgainBtn.addEventListener('click', () => {
+            gameCompleteScreen.classList.add('hidden');
+            game1.classList.remove('hidden');
+            resetGame1();
+            playSound('click');
+        });
+        
+        // 阶段选择
+        document.querySelectorAll('.stage-card').forEach(card => {
+            if (!card.classList.contains('stage-lock')) {
+                card.addEventListener('click', () => {
+                    const stage = card.getAttribute('data-stage');
+                    loadStageGames(stage);
+                    stageSelection.classList.add('hidden');
+                    gameSelection.classList.remove('hidden');
+                    playSound('click');
+                });
+            }
+        });
+        
+        // 加载阶段游戏
+        function loadStageGames(stage) {
+            const stageTitle = document.getElementById('stage-title');
+            const stageDescription = document.getElementById('stage-description');
+            
+            // 根据阶段设置标题和描述
+            switch(stage) {
+                case '1':
+                    stageTitle.textContent = '第一阶段：基础感知与识别';
+                    stageDescription.textContent = '本阶段将帮助你认识最基本的情绪，学习识别不同的面部表情。';
+                    break;
+                case '2':
+                    stageTitle.textContent = '第二阶段：情境理解与应用';
+                    stageDescription.textContent = '本阶段将帮助你理解情绪与情境的关系，学习区分情绪的强度。';
+                    break;
+                case '3':
+                    stageTitle.textContent = '第三阶段：社会认知与调节';
+                    stageDescription.textContent = '本阶段将帮助你学习在社交场合中识别和管理情绪，理解他人感受。';
+                    break;
+                case '4':
+                    stageTitle.textContent = '第四阶段：综合应用与泛化';
+                    stageDescription.textContent = '本阶段将帮助你综合运用情绪技能，学会表达和转化各种情绪。';
+                    break;
+            }
+        }
+        
+        // 游戏选择
+        document.querySelectorAll('.game-card').forEach(card => {
+            card.addEventListener('click', () => {
+                const game = card.getAttribute('data-game');
+                gameSelection.classList.add('hidden');
+                
+                // 隐藏所有游戏，显示选中的游戏
+                document.querySelectorAll('[id^="game-"]').forEach(g => {
+                    g.classList.add('hidden');
+                });
+                
+                document.getElementById(`game-${game}`).classList.remove('hidden');
+                
+                // 如果是游戏1，初始化摄像头
+                if (game === '1') {
+                    initCamera();
+                } 
+                // 如果是游戏3，初始化拼图
+                else if (game === '3') {
+                    initPuzzle();
+                }
+                
+                playSound('click');
+            });
+        });
+        
+        // 返回游戏选择
+        document.querySelectorAll('.back-to-games').forEach(btn => {
+            btn.addEventListener('click', () => {
+                // 隐藏所有游戏
+                document.querySelectorAll('[id^="game-"]').forEach(g => {
+                    g.classList.add('hidden');
+                });
+                
+                gameSelection.classList.remove('hidden');
+                playSound('click');
+            });
+        });
+        
+        // 游戏1：情绪模仿游戏
+        let currentEmotionIndex = 0;
+        const emotions = [
+            { name: '开心', icon: 'fa-smile-o', color: 'text-yellow-500', hints: ['嘴角上扬', '眼睛可能眯起来', '表情放松'] },
+            { name: '难过', icon: 'fa-frown-o', color: 'text-blue-500', hints: ['嘴角向下', '可能会流泪', '表情沉重'] },
+            { name: '生气', icon: 'fa-angry', color: 'text-red-500', hints: ['眉毛皱起来', '嘴巴紧闭或向下', '可以握紧拳头'] },
+            { name: '害怕', icon: 'fa-fear', color: 'text-purple-500', hints: ['眼睛睁大', '嘴巴张开', '可能会后退'] },
+            { name: '惊讶', icon: 'fa-surprise', color: 'text-green-500', hints: ['眼睛睁大', '嘴巴张开成O形', '眉毛上扬'] }
+        ];
+        
+        const emotionToImitate = document.getElementById('emotion-to-imitate');
+        const startRecognitionBtn = document.getElementById('start-recognition');
+        const game1Feedback = document.getElementById('game1-feedback');
+        const game1NextBtn = document.getElementById('game1-next-btn');
+        const game1CurrentRound = document.getElementById('game1-current-round');
+        
+        // 初始化游戏1
+        function initGame1() {
+            currentEmotionIndex = 0;
+            updateGame1Emotion();
+            game1CurrentRound.textContent = currentEmotionIndex + 1;
+            game1Feedback.classList.add('hidden');
+            game1NextBtn.classList.add('hidden');
+        }
+        
+        // 重置游戏1
+        function resetGame1() {
+            initGame1();
+            document.getElementById('camera-loading').classList.remove('hidden');
+            document.getElementById('no-face-detected').classList.add('hidden');
+            initCamera();
+        }
+        
+        // 更新游戏1的情绪
+        function updateGame1Emotion() {
+            const emotion = emotions[currentEmotionIndex];
+            emotionToImitate.innerHTML = `
+                <i class="fa ${emotion.icon} text-5xl ${emotion.color}"></i>
+                <p class="mt-2 text-xl font-bold text-primary">${emotion.name}</p>
+            `;
+            
+            // 更新提示
+            const hintList = document.querySelector('#game-1 .text-gray-600.space-y-2');
+            hintList.innerHTML = '';
+            emotion.hints.forEach(hint => {
+                const li = document.createElement('li');
+                li.className = 'flex items-start';
+                li.innerHTML = `<i class="fa fa-check-circle text-success mt-1 mr-2"></i><span>${hint}</span>`;
+                hintList.appendChild(li);
+            });
+        }
+        
+        // 初始化摄像头
+        async function initCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                const video = document.getElementById('emotion-camera');
+                video.srcObject = stream;
+                
+                video.onloadedmetadata = () => {
+                    document.getElementById('camera-loading').classList.add('hidden');
+                };
+                
+                // 加载面部识别模型
+                await loadFaceDetectionModel();
+            } catch (err) {
+                console.error('无法访问摄像头:', err);
+                document.getElementById('camera-loading').innerHTML = `
+                    <i class="fa fa-exclamation-triangle text-5xl text-warning mb-3"></i>
+                    <p>无法访问摄像头，请检查权限设置</p>
+                `;
+            }
+        }
+        
+        // 面部检测模型
+        let model;
+        async function loadFaceDetectionModel() {
+            model = await faceLandmarksDetection.load(
+                faceLandmarksDetection.SupportedPackages.mediapipeFacemesh
+            );
+        }
+        
+        // 开始识别表情
+        startRecognitionBtn.addEventListener('click', async () => {
+            startRecognitionBtn.disabled = true;
+            startRecognitionBtn.innerHTML = '识别中... <i class="fa fa-spinner fa-spin ml-1"></i>';
+            document.getElementById('recognizing').classList.remove('hidden');
+            
+            // 模拟识别过程（实际应用中应使用真实的表情识别算法）
+            setTimeout(async () => {
+                const video = document.getElementById('emotion-camera');
+                const canvas = document.getElementById('camera-canvas');
+                const ctx = canvas.getContext('2d');
+                
+                // 设置canvas尺寸与视频一致
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                
+                // 绘制当前视频帧到canvas
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                
+                // 检测面部
+                const predictions = await model.estimateFaces({ input: video });
+                
+                document.getElementById('recognizing').classList.add('hidden');
+                
+                if (predictions.length > 0) {
+                    // 检测到人脸，模拟识别结果（70%概率成功）
+                    const success = Math.random() > 0.3;
+                    
+                    if (success) {
+                        // 识别成功
+                        game1Feedback.className = 'p-4 rounded-lg text-center mb-6 bg-success/20 text-success';
+                        game1Feedback.innerHTML = `
+                            <i class="fa fa-check-circle text-2xl mb-2"></i>
+                            <p class="font-bold">太棒了！你做对了${emotions[currentEmotionIndex].name}的表情！</p>
+                        `;
+                        game1Feedback.classList.remove('hidden');
+                        game1NextBtn.classList.remove('hidden');
+                        playSound('success');
+                    } else {
+                        // 识别失败
+                        game1Feedback.className = 'p-4 rounded-lg text-center mb-6 bg-warning/20 text-warning';
+                        game1Feedback.innerHTML = `
+                            <i class="fa fa-exclamation-circle text-2xl mb-2"></i>
+                            <p>再试一次吧，试着${emotions[currentEmotionIndex].hints[0]}</p>
+                        `;
+                        game1Feedback.classList.remove('hidden');
+                        startRecognitionBtn.disabled = false;
+                        startRecognitionBtn.innerHTML = '重新识别 <i class="fa fa-camera ml-1"></i>';
+                        playSound('tryagain');
+                    }
+                } else {
+                    // 未检测到人脸
+                    document.getElementById('no-face-detected').classList.remove('hidden');
+                    startRecognitionBtn.disabled = false;
+                    startRecognitionBtn.innerHTML = '重新识别 <i class="fa fa-camera ml-1"></i>';
+                    playSound('error');
+                }
+            }, 2000);
+        });
+        
+        // 下一个情绪
+        game1NextBtn.addEventListener('click', () => {
+            currentEmotionIndex++;
+            game1Feedback.classList.add('hidden');
+            game1NextBtn.classList.add('hidden');
+            startRecognitionBtn.disabled = false;
+            startRecognitionBtn.innerHTML = '开始识别 <i class="fa fa-camera ml-1"></i>';
+            
+            if (currentEmotionIndex < emotions.length) {
+                // 还有下一个情绪
+                updateGame1Emotion();
+                game1CurrentRound.textContent = currentEmotionIndex + 1;
+                document.getElementById('no-face-detected').classList.add('hidden');
+                playSound('click');
+            } else {
+                // 完成所有情绪
+                game1.classList.add('hidden');
+                gameCompleteScreen.classList.remove('hidden');
+                playSound('complete');
+            }
+        });
+        
+        // 游戏2：情绪选择游戏
+        let currentTargetEmotionIndex = 0;
+        const targetEmotions = ['开心', '难过', '生气', '害怕', '惊讶'];
+        const targetEmotionElement = document.getElementById('target-emotion');
+        const game2Feedback = document.getElementById('game2-feedback');
+        const game2NextBtn = document.getElementById('game2-next-btn');
+        const game2CurrentRound = document.getElementById('game2-current-round');
+        const emotionOptions = document.querySelectorAll('.emotion-option');
+        
+        // 初始化游戏2
+        function initGame2() {
+            currentTargetEmotionIndex = 0;
+            targetEmotionElement.textContent = targetEmotions[currentTargetEmotionIndex];
+            game2CurrentRound.textContent = currentTargetEmotionIndex + 1;
+            game2Feedback.classList.add('hidden');
+            game2NextBtn.classList.add('hidden');
+            
+            // 重置选项样式
+            emotionOptions.forEach(option => {
+                option.classList.remove('border-success', 'border-danger', 'opacity-50');
+                option.classList.add('border-transparent');
+                option.style.pointerEvents = 'auto';
+            });
+        }
+        
+        // 为游戏2选项添加点击事件
+        emotionOptions.forEach(option => {
+            option.addEventListener('click', () => {
+                const selectedEmotion = option.getAttribute('data-emotion');
+                const targetEmotion = targetEmotions[currentTargetEmotionIndex];
+                
+                // 禁用所有选项
+                emotionOptions.forEach(opt => {
+                    opt.style.pointerEvents = 'none';
+                });
+                
+                // 检查答案
+                if (selectedEmotion === targetEmotion.toLowerCase()) {
+                    // 正确
+                    option.classList.remove('border-transparent', 'border-primary');
+                    option.classList.add('border-success');
+                    
+                    game2Feedback.className = 'p-4 rounded-lg text-center mb-6 bg-success/20 text-success';
+                    game2Feedback.innerHTML = `
+                        <i class="fa fa-check-circle text-2xl mb-2"></i>
+                        <p class="font-bold">正确！这是${targetEmotion}的表情</p>
+                    `;
+                    playSound('success');
+                } else {
+                    // 错误
+                    option.classList.remove('border-transparent', 'border-primary');
+                    option.classList.add('border-danger');
+                    
+                    // 显示正确答案
+                    emotionOptions.forEach(opt => {
+                        if (opt.getAttribute('data-emotion') === targetEmotion.toLowerCase()) {
+                            opt.classList.remove('border-transparent', 'border-primary');
+                            opt.classList.add('border-success');
+                        } else if (opt !== option) {
+                            opt.classList.add('opacity-50');
+                        }
+                    });
+                    
+                    game2Feedback.className = 'p-4 rounded-lg text-center mb-6 bg-danger/20 text-danger';
+                    game2Feedback.innerHTML = `
+                        <i class="fa fa-times-circle text-2xl mb-2"></i>
+                        <p>这不是${targetEmotion}的表情，正确答案在这里</p>
+                    `;
+                    playSound('error');
+                }
+                
+                game2Feedback.classList.remove('hidden');
+                game2NextBtn.classList.remove('hidden');
+            });
+        });
+        
+        // 游戏2下一题
+        game2NextBtn.addEventListener('click', () => {
+            currentTargetEmotionIndex++;
+            
+            if (currentTargetEmotionIndex < targetEmotions.length) {
+                // 还有下一题
+                initGame2();
+                playSound('click');
+            } else {
+                // 完成所有题目
+                game2.classList.add('hidden');
+                gameCompleteScreen.classList.remove('hidden');
+                playSound('complete');
+            }
+        });
+        
+        // 游戏3：表情拼图游戏
+        let currentPuzzleIndex = 0;
+        const puzzleImages = [
+            'https://picsum.photos/seed/puzzle1/300/300',
+            'https://picsum.photos/seed/puzzle2/300/300',
+            'https://picsum.photos/seed/puzzle3/300/300'
+        ];
+        const puzzleReference = document.getElementById('puzzle-reference');
+        const puzzleContainer = document.getElementById('puzzle-container');
+        const showHintBtn = document.getElementById('show-hint');
+        const game3CurrentRound = document.getElementById('game3-current-round');
+        const game3NextBtn = document.getElementById('game3-next-btn');
+        const puzzleCompleteMessage = document.getElementById('puzzle-complete-message');
+        
+        // 初始化拼图
+        function initPuzzle() {
+            currentPuzzleIndex = 0;
+            updatePuzzle();
+            game3CurrentRound.textContent = currentPuzzleIndex + 1;
+            puzzleCompleteMessage.style.display = 'none';
+        }
+        
+        // 更新拼图
+        function updatePuzzle() {
+            puzzleReference.src = puzzleImages[currentPuzzleIndex];
+            createPuzzlePieces(puzzleImages[currentPuzzleIndex]);
+        }
+        
+        // 创建拼图碎片
+        function createPuzzlePieces(imageUrl) {
+            // 清空容器
+            puzzleContainer.innerHTML = '';
+            
+            // 创建4x4的拼图碎片
+            const rows = 4;
+            const cols = 4;
+            const pieceCount = rows * cols;
+            
+            // 计算每个碎片的尺寸
+            const pieceWidth = puzzleContainer.clientWidth / cols;
+            const pieceHeight = puzzleContainer.clientHeight / rows;
+            
+            // 创建碎片数组
+            const pieces = [];
+            for (let i = 0; i < pieceCount; i++) {
+                const row = Math.floor(i / cols);
+                const col = i % cols;
+                
+                const piece = document.createElement('div');
+                piece.className = 'absolute cursor-move transition-all shadow-md';
+                piece.style.width = `${pieceWidth}px`;
+                piece.style.height = `${pieceHeight}px`;
+                piece.style.backgroundImage = `url(${imageUrl})`;
+                piece.style.backgroundSize = `${puzzleContainer.clientWidth}px ${puzzleContainer.clientHeight}px`;
+                piece.style.backgroundPosition = `-${col * pieceWidth}px -${row * pieceHeight}px`;
+                piece.dataset.index = i;
+                piece.dataset.row = row;
+                piece.dataset.col = col;
+                
+                // 记录正确位置
+                piece.dataset.correctX = col * pieceWidth;
+                piece.dataset.correctY = row * pieceHeight;
+                
+                pieces.push(piece);
+            }
+            
+            // 打乱碎片位置
+            const shuffledPieces = shuffleArray(pieces);
+            
+            // 随机放置碎片
+            shuffledPieces.forEach((piece, index) => {
+                // 随机位置
+                const randomX = Math.floor(Math.random() * (puzzleContainer.clientWidth - pieceWidth));
+                const randomY = Math.floor(Math.random() * (puzzleContainer.clientHeight - pieceHeight));
+                
+                piece.style.left = `${randomX}px`;
+                piece.style.top = `${randomY}px`;
+                
+                // 添加拖拽功能
+                makeDraggable(piece, pieceWidth, pieceHeight);
+                
+                puzzleContainer.appendChild(piece);
+            });
+            
+            // 添加完成消息容器
+            puzzleContainer.appendChild(puzzleCompleteMessage);
+        }
+        
+        // 打乱数组顺序
+        function shuffleArray(array) {
+            const newArray = [...array];
+            for (let i = newArray.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+            }
+            return newArray;
+        }
+        
+        // 使元素可拖拽
+        function makeDraggable(element, pieceWidth, pieceHeight) {
+            let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+            
+            element.onmousedown = dragMouseDown;
+            element.ontouchstart = dragTouchStart;
+            
+            function dragMouseDown(e) {
+                e = e || window.event;
+                e.preventDefault();
+                // 获取鼠标初始位置
+                pos3 = e.clientX;
+                pos4 = e.clientY;
+                document.onmouseup = closeDragElement;
+                // 当鼠标移动时调用elementDrag函数
+                document.onmousemove = elementDrag;
+                // 提升当前元素层级
+                element.style.zIndex = 100;
+            }
+            
+            function dragTouchStart(e) {
+                e = e || window.event;
+                e.preventDefault();
+                // 获取触摸初始位置
+                pos3 = e.touches[0].clientX;
+                pos4 = e.touches[0].clientY;
+                document.ontouchend = closeDragElement;
+                // 当触摸移动时调用elementDrag函数
+                document.ontouchmove = elementTouchDrag;
+                // 提升当前元素层级
+                element.style.zIndex = 100;
+            }
+            
+            function elementDrag(e) {
+                e = e || window.event;
+                e.preventDefault();
+                // 计算新的位置
+                pos1 = pos3 - e.clientX;
+                pos2 = pos4 - e.clientY;
+                pos3 = e.clientX;
+                pos4 = e.clientY;
+                // 设置元素新的位置
+                element.style.top = (element.offsetTop - pos2) + "px";
+                element.style.left = (element.offsetLeft - pos1) + "px";
+                // 检查是否放置在正确位置
+                checkPosition(element);
+            }
+            
+            function elementTouchDrag(e) {
+                e = e || window.event;
+                e.preventDefault();
+                // 计算新的位置
+                pos1 = pos3 - e.touches[0].clientX;
+                pos2 = pos4 - e.touches[0].clientY;
+                pos3 = e.touches[0].clientX;
+                pos4 = e.touches[0].clientY;
+                // 设置元素新的位置
+                element.style.top = (element.offsetTop - pos2) + "px";
+                element.style.left = (element.offsetLeft - pos1) + "px";
+                // 检查是否放置在正确位置
+                checkPosition(element);
+            }
+            
+            function closeDragElement() {
+                // 停止移动
+                document.onmouseup = null;
+                document.onmousemove = null;
+                document.ontouchend = null;
+                document.ontouchmove = null;
+                // 恢复层级
+                element.style.zIndex = 10;
+                // 最终检查位置
+                checkPosition(element);
+                // 检查是否所有碎片都已正确放置
+                checkAllPieces();
+            }
+        }
+        
+        // 检查碎片是否放置在正确位置
+        function checkPosition(element) {
+            const correctX = parseInt(element.dataset.correctX);
+            const correctY = parseInt(element.dataset.correctY);
+            const tolerance = 20; // 容错范围
+            
+            const currentX = parseInt(element.style.left);
+            const currentY = parseInt(element.style.top);
+            
+            // 检查是否在正确位置附近
+            if (
+                Math.abs(currentX - correctX) < tolerance &&
+                Math.abs(currentY - correctY) < tolerance
+            ) {
+                // 固定在正确位置
+                element.style.left = `${correctX}px`;
+                element.style.top = `${correctY}px`;
+                element.style.cursor = 'default';
+                element.onmousedown = null;
+                element.ontouchstart = null;
+                element.classList.add('opacity-100');
+                element.classList.remove('opacity-70');
+                return true;
+            }
+            
+            element.classList.add('opacity-70');
+            return false;
+        }
+        
+        // 检查是否所有碎片都已正确放置
+        function checkAllPieces() {
+            const pieces = puzzleContainer.querySelectorAll('[data-index]');
+            let allCorrect = true;
+            
+            pieces.forEach(piece => {
+                const correctX = parseInt(piece.dataset.correctX);
+                const correctY = parseInt(piece.dataset.correctY);
+                const currentX = parseInt(piece.style.left);
+                const currentY = parseInt(piece.style.top);
+                
+                if (currentX !== correctX || currentY !== correctY) {
+                    allCorrect = false;
+                }
+            });
+            
+            if (allCorrect) {
+                // 所有碎片都已正确放置
+                setTimeout(() => {
+                    puzzleCompleteMessage.style.display = 'flex';
+                    playSound('complete');
+                }, 500);
+            }
+        }
+        
+        // 提示按钮
+        showHintBtn.addEventListener('click', () => {
+            const pieces = puzzleContainer.querySelectorAll('[data-index]');
+            // 找到第一个未正确放置的碎片
+            for (let i = 0; i < pieces.length; i++) {
+                const piece = pieces[i];
+                const correctX = parseInt(piece.dataset.correctX);
+                const correctY = parseInt(piece.dataset.correctY);
+                const currentX = parseInt(piece.style.left);
+                const currentY = parseInt(piece.style.top);
+                
+                if (currentX !== correctX || currentY !== correctY) {
+                    // 闪烁提示该碎片的正确位置
+                    const hintMarker = document.createElement('div');
+                    hintMarker.className = 'absolute border-2 border-primary rounded animate-pulse';
+                    hintMarker.style.width = piece.style.width;
+                    hintMarker.style.height = piece.style.height;
+                    hintMarker.style.left = `${correctX}px`;
+                    hintMarker.style.top = `${correctY}px`;
+                    hintMarker.style.zIndex = 50;
+                    
+                    puzzleContainer.appendChild(hintMarker);
+                    
+                    // 3秒后移除提示
+                    setTimeout(() => {
+                        hintMarker.remove();
+                    }, 3000);
+                    
+                    playSound('hint');
+                    break;
+                }
+            }
+        });
+        
+        // 游戏3下一个拼图
+        game3NextBtn.addEventListener('click', () => {
+            currentPuzzleIndex++;
+            
+            if (currentPuzzleIndex < puzzleImages.length) {
+                // 还有下一个拼图
+                updatePuzzle();
+                game3CurrentRound.textContent = currentPuzzleIndex + 1;
+                playSound('click');
+            } else {
+                // 完成所有拼图
+                game3.classList.add('hidden');
+                gameCompleteScreen.classList.remove('hidden');
+                playSound('complete');
+            }
+        });
+        
+        // 声音播放函数
+        function playSound(type) {
+            if (!soundEnabled) return;
+            
+            // 这里可以添加实际的音效文件
+            console.log(`播放${type}音效`);
+        }
+        
+        // 初始化游戏
+        window.addEventListener('DOMContentLoaded', () => {
+            // 为所有游戏添加返回按钮事件
+            document.querySelectorAll('.back-to-games').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    // 停止摄像头
+                    const video = document.getElementById('emotion-camera');
+                    if (video && video.srcObject) {
+                        video.srcObject.getTracks().forEach(track => track.stop());
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
