@@ -5,16 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
-<title>情绪理解训练 · 竖屏简洁版</title>
+<title>阶段二 · 情境理解与应用</title>
 <style>
-  :root{--bg:#0b1020;--panel:#0f1530;--card:#121a3a;--text:#e9edff;--muted:#aab4ff;--line:#2a3561;--brand:#5b8cff;--ok:#27c17d;--bad:#ff5d6a;--warn:#f7b955;--r:18px}
+  :root{--bg:#0b1020;--panel:#0f1530;--line:#2a3561;--text:#e9edff;--muted:#aab4ff;--ok:#27c17d;--bad:#ff5d6a;--brand:#5b8cff;--r:18px}
   *{box-sizing:border-box}
   html,body{height:100%}
   body{margin:0;background:linear-gradient(180deg,#0b1020,#0b1126);color:var(--text);font-family:-apple-system,system-ui,"PingFang SC","Noto Sans SC",Arial}
   .app{min-height:100%;display:grid;grid-template-rows:auto 1fr auto;max-width:520px;margin:0 auto}
   header{position:sticky;top:0;background:rgba(15,21,48,.9);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);z-index:20}
   .bar{display:flex;align-items:center;gap:10px;padding:10px 14px}
-  .bar h1{font-size:18px;margin:0;font-weight:800;letter-spacing:.2px}
+  .bar h1{font-size:18px;margin:0;font-weight:800}
   .bar .act{margin-left:auto;display:flex;gap:8px}
   .btn{display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--line);background:#151d42;color:var(--text);border-radius:14px;padding:10px 14px;font-weight:700;min-height:44px;min-width:44px;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
   .btn.primary{background:linear-gradient(90deg,var(--brand),#73a4ff);border-color:transparent;color:#fff}
@@ -41,9 +41,6 @@
   .dropzone{min-height:120px;border:2px dashed var(--line);border-radius:14px;padding:10px;display:flex;gap:8px;flex-wrap:wrap}
   .draggable{padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:#1a2147;font-size:18px}
   .dropzone.over{background:rgba(91,140,255,.08)}
-  .canvas{width:100%;height:280px;border-radius:12px;background:#0a0f24;border:1px solid var(--line);display:grid;place-items:center;position:relative}
-  .face-base{font-size:96px}
-  .sticker-bar{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:8px}
   footer{padding:8px 14px;color:var(--muted);font-size:12px;text-align:center}
 </style>
 </head>
@@ -51,7 +48,7 @@
 <div class="app" id="app">
   <header>
     <div class="bar">
-      <h1>🎯 情绪理解训练 · 竖屏</h1>
+      <h1>📚 阶段二 · 情境理解与应用</h1>
       <div class="act">
         <button class="btn" id="btnHome">🏠</button>
         <button class="btn" id="btnReport">📈</button>
@@ -60,14 +57,14 @@
     </div>
   </header>
   <main id="main" tabindex="-1" aria-live="polite"></main>
-  <footer>© <span id="y"></span> 情绪理解训练 · 竖屏简洁版 · 本地运行 / iPad 触控优化</footer>
+  <footer>© <span id="y"></span> 情绪训练 · 阶段二 · 本地运行 / iPad 触控优化</footer>
 </div>
 <script>
 (function(){
   const $=(s,el=document)=>el.querySelector(s);
   const $$=(s,el=document)=>Array.from(el.querySelectorAll(s));
-  const DB_KEY='emo.train.v2';
-  const state={score:{}, profile:{name:'学生A'}, prefs:{speech:true}};
+  const DB_KEY='emo.stage2.v1';
+  const state={score:{}, prefs:{speech:true}};
   const speak=(t)=>{ if(!state.prefs.speech) return; try{const u=new SpeechSynthesisUtterance(t);u.lang='zh-CN';speechSynthesis.cancel();speechSynthesis.speak(u);}catch(e){} };
   const save=()=>localStorage.setItem(DB_KEY,JSON.stringify(state));
   const load=()=>{try{const raw=localStorage.getItem(DB_KEY); if(raw) Object.assign(state, JSON.parse(raw));}catch(e){} };
@@ -76,28 +73,13 @@
   const download=(name,content)=>{ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([content],{type:'text/plain;charset=utf-8;'})); a.download=name; a.click(); URL.revokeObjectURL(a.href); };
 
   function home(){
-    const s=(id,title,icon,items)=>`<section class="sec"><div class="hero"><div class="ico">${icon}</div><h2>${title}</h2></div><div class="grid">${items.map(x=>`<button class="tile" onclick="location.hash='${x.hash}'"><div class='ico'>${x.emo}</div><div>${x.name}</div><div class='meta'>最佳 ${ (state.score[x.id]?.best)||0 }</div></button>`).join('')}</div></section>`;
-    $('#main').innerHTML=
-      s('s1','第一阶段：基础感知与识别','🎵',[
-        {id:'g1',hash:'#g1',emo:'😊',name:'(1) 情绪指认'},
-        {id:'g2',hash:'#g2',emo:'🧩',name:'(2) 情绪配对'},
-        {id:'g3',hash:'#g3',emo:'🎭',name:'(3) 情绪模仿(相机)'},
-      ])+
-      s('s2','第二阶段：情境理解与应用','📚',[
-        {id:'g4',hash:'#g4',emo:'🖼️',name:'(4) 情境配对'},
-        {id:'g5',hash:'#g5',emo:'🧠',name:'(5) 情绪原因推测'},
-        {id:'g6',hash:'#g6',emo:'📶',name:'(6) 情绪强度排序'},
-      ])+
-      s('s3','第三阶段：社会认知与调节','👥',[
-        {id:'g7',hash:'#g7',emo:'🧭',name:'(7) 社会情境决策'},
-        {id:'g8',hash:'#g8',emo:'💨',name:'(8) 情绪调节策略'},
-        {id:'g9',hash:'#g9',emo:'🤝',name:'(9) 共情理解'},
-      ])+
-      s('s4','第四阶段：综合应用与泛化','🌟',[
-        {id:'g10',hash:'#g10',emo:'👧',name:'(10) 换脸小女孩'},
-        {id:'g11',hash:'#g11',emo:'🫧',name:'(11) 消除坏情绪'},
-        {id:'g12',hash:'#g12',emo:'🎨',name:'(12) 情绪绘画表达'},
-      ]);
+    const items=[
+      {id:'g4',hash:'#g4',ico:'🖼️',name:'(4) 情境配对'},
+      {id:'g5',hash:'#g5',ico:'🧠',name:'(5) 情绪原因推测'},
+      {id:'g6',hash:'#g6',ico:'📶',name:'(6) 情绪强度排序'}
+    ];
+    $('#main').innerHTML=`<section class='sec'><h2>选择一个小游戏开始</h2><div class='grid'>${items.map(x=>`<button class='tile' onclick="location.hash='${x.hash}'"><div class='ico'>${x.ico}</div><div>${x.name}</div><div class='meta'>最佳 ${(state.score[x.id]?.best)||0}</div></button>`).join('')}</div><div class='row' style='margin-top:8px'><span class='chip'>语音播报已${state.prefs.speech?'开启':'关闭'}</span><button class='btn' id='toggleSpeech'>🔊 切换语音</button></div></section>`;
+    $('#toggleSpeech').onclick=()=>{state.prefs.speech=!state.prefs.speech; save(); home();};
     speak('请选择一个训练开始。');
   }
 
@@ -107,71 +89,81 @@
     $('#back').onclick=()=>{location.hash='#home'}
   }
 
-  // ====== 已实现小游戏：g1 指认、g10 换脸、g11 消消乐 ======
-  function g1(){
-    const all=[{emo:'高兴',icon:'😊'},{emo:'伤心',icon:'😢'},{emo:'生气',icon:'😠'},{emo:'害怕',icon:'😨'}];
-    const s=state.score.g1||{}; const level=Math.min(4,2+Math.floor((s.best||0)/5));
-    const pool=all.slice(0,level); const ans=pool[Math.floor(Math.random()*pool.length)];
-    const opts=[...pool].sort(()=>Math.random()-.5);
-    $('#main').innerHTML=`<section class='sec'><div class='hero'><div class='ico'>🎵</div><h2>(1) 情绪指认</h2></div><div class='card'><div class='face'>${ans.icon}</div><p style='text-align:center;color:var(--muted)'>请点击：这是什么情绪？</p><div class='choices'>${opts.map(o=>`<button class='choice' data-v='${o.emo}'>${o.emo}</button>`).join('')}</div><div class='row' style='margin-top:8px'><span class='chip'>✅ ${(s.ok||0)}　❌ ${(s.ng||0)}　🏆 ${(s.best||0)}</span><div class='row' style='gap:6px'><button class='btn' id='speak'>🔊</button><button class='btn primary' id='next'>下一题</button></div></div></div></section>`;
-    speak('这是什么情绪？');
-    $('#speak').onclick=()=>speak('这是什么情绪？');
-    $$('.choice').forEach(b=> b.onclick=()=>{ const ok=b.dataset.v===ans.emo; b.classList.add(ok?'good':'bad'); bump('g1',ok); speak(ok?`你真棒！这是${ans.emo}`:`再想想，这是${ans.emo}哦`); setTimeout(()=>g1(),600); });
-    $('#next').onclick=()=>g1();
+  // ========= g4 情境配对 =========
+  function g4(){
+    // 情境库：按难度分层（1=明显，2=一般，3=微妙）
+    const bank=[
+      {txt:'生日收到礼物 🎁', ans:'高兴', why:'收到礼物通常会感到高兴。', lvl:1},
+      {txt:'摔倒擦伤了膝盖 🩹', ans:'伤心', why:'受伤会难过或疼痛而伤心。', lvl:1},
+      {txt:'别人抢走了我的玩具 😤', ans:'生气', why:'物品被抢会感到生气。', lvl:1},
+      {txt:'夜里一个人走在黑路上 🌃', ans:'害怕', why:'黑暗与未知容易引起害怕。', lvl:1},
+      {txt:'小测拿了小红花 🌟', ans:'高兴', why:'获得表扬会高兴。', lvl:2},
+      {txt:'朋友不小心打碎了我的杯子 🥤', ans:'生气', why:'东西被打碎容易生气（也可能难过），此处练习主情绪。', lvl:2},
+      {txt:'重要的东西找不到了 🔑', ans:'伤心', why:'丢失物品会伤心或着急。', lvl:2},
+      {txt:'第一次上台表演 🎤', ans:'害怕', why:'陌生情境会紧张害怕。', lvl:2},
+      {txt:'我说话被同学嘲笑 🙃', ans:'伤心', why:'被嘲笑常会难过。', lvl:3},
+      {txt:'排队时有人插队 🚶‍♂️', ans:'生气', why:'规则被打破容易生气。', lvl:3},
+      {txt:'电梯突然停了一下 ⛔', ans:'害怕', why:'突发事件会害怕。', lvl:3},
+      {txt:'做完作业老师说做得好 ✅', ans:'高兴', why:'被肯定会高兴。', lvl:3}
+    ];
+    const s=state.score.g4||{}; const level=Math.min(3,1+Math.floor((s.best||0)/4));
+    const pool=bank.filter(x=>x.lvl<=level);
+    const q=pool[Math.floor(Math.random()*pool.length)];
+    const opts=['高兴','伤心','生气','害怕'].sort(()=>Math.random()-.5);
+    $('#main').innerHTML=`<section class='sec'><div class='hero'><div class='ico'>📚</div><h2>(4) 情境配对</h2></div><div class='card'><p class='chip'>难度：${level}</p><h3 style='margin:8px 0'>情境：${q.txt}</h3><div class='choices'>${opts.map(o=>`<button class='choice' data-v='${o}'>${o}</button>`).join('')}</div><div class='row' style='margin-top:8px'><span class='chip'>✅ ${(s.ok||0)}　❌ ${(s.ng||0)}　🏆 ${(s.best||0)}</span><div class='row' style='gap:6px'><button class='btn' id='speak'>🔊</button><button class='btn primary' id='next'>下一题</button></div></div><p id='why' style='color:var(--muted);margin-top:6px'></p></div></section>`;
+    speak('请根据情境选择情绪');
+    $('#speak').onclick=()=>speak('请根据情境选择情绪');
+    const why=$('#why');
+    $$('.choice').forEach(b=> b.onclick=()=>{ const ok=b.dataset.v===q.ans; b.classList.add(ok?'good':'bad'); bump('g4',ok); why.textContent= q.why; speak(ok?'你真棒！':'再想想'); setTimeout(()=>g4(),700); });
+    $('#next').onclick=()=>g4();
   }
 
-  function g10(){
-    // 换脸小女孩：把正确情绪贴纸拖到小女孩脸上
-    const target='生气';
-    const stickers=[
-      {emo:'高兴',icon:'😊'},{emo:'伤心',icon:'😢'},{emo:'生气',icon:'😠'},{emo:'害怕',icon:'😨'}
-    ].sort(()=>Math.random()-.5);
-    $('#main').innerHTML=`<section class='sec'><div class='hero'><div class='ico'>🌟</div><h2>(10) 换脸小女孩</h2></div><div class='card'><div class='canvas' id='canvas'><div style='text-align:center'><div style='font-size:42px'>👧</div><div class='chip'>题目：选择 <b>${target}</b> 的表情并放到小女孩脸上</div></div></div><div class='sticker-bar' id='bar'>${stickers.map(s=>`<div class='draggable' draggable='true' data-emo='${s.emo}' style='font-size:28px'>${s.icon}</div>`).join('')}</div><div class='row' style='margin-top:8px'><span class='chip'>拖拽表情到小女孩脸上</span><button class='btn primary' id='again'>再来一题</button></div></div></section>`;
-    const canvas=$('#canvas');
-    canvas.addEventListener('dragover',e=>{e.preventDefault(); canvas.classList.add('over')});
-    canvas.addEventListener('dragleave',()=>canvas.classList.remove('over'));
-    canvas.addEventListener('drop',e=>{e.preventDefault(); canvas.classList.remove('over'); const emo=e.dataTransfer.getData('text/plain'); const ok=emo===target; if(ok){ canvas.innerHTML=`<div style='text-align:center'><div style='font-size:42px'>👧</div><div style='font-size:72px;line-height:1'>😠</div><div class='chip'>你真棒！</div></div>`; bump('g10',true); speak('你真棒！'); }else{ bump('g10',false); speak('再想想'); } });
-    $$('.draggable').forEach(d=>{ d.addEventListener('dragstart',e=>{ e.dataTransfer.setData('text/plain', d.dataset.emo) }); });
-    $('#again').onclick=()=>g10();
+  // ========= g5 情绪原因推测 =========
+  function g5(){
+    // 从表情反推常见原因（含干扰项）
+    const emoBank=[
+      {icon:'😊', emo:'高兴', A:'得到奖励', B:'玩具坏了', C:'朋友离开', ans:'A', why:'得到奖励通常会高兴。'},
+      {icon:'😢', emo:'伤心', A:'玩具坏了', B:'得到表扬', C:'去游乐园', ans:'A', why:'东西坏了会伤心。'},
+      {icon:'😠', emo:'生气', A:'有人欺负我', B:'收到礼物', C:'吃到喜欢的蛋糕', ans:'A', why:'被冒犯会生气。'},
+      {icon:'😨', emo:'害怕', A:'看见小狗摇尾巴', B:'雷声很大', C:'阳光明媚', ans:'B', why:'巨响会让人害怕。'}
+    ];
+    const s=state.score.g5||{}; const q=emoBank[Math.floor(Math.random()*emoBank.length)];
+    $('#main').innerHTML=`<section class='sec'><div class='hero'><div class='ico'>📚</div><h2>(5) 情绪原因推测</h2></div><div class='card'><div class='face'>${q.icon}</div><p class='chip'>他/她可能为什么<strong>${q.emo}</strong>？</p><div class='choices'><button class='choice' data-v='A'>A. ${q.A}</button><button class='choice' data-v='B'>B. ${q.B}</button><button class='choice' data-v='C'>C. ${q.C}</button></div><div class='row' style='margin-top:8px'><span class='chip'>✅ ${(s.ok||0)}　❌ ${(s.ng||0)}　🏆 ${(s.best||0)}</span><button class='btn primary' id='next'>下一题</button></div><p id='why' style='color:var(--muted);margin-top:6px'></p></div></section>`;
+    speak('请推测他为什么会有这种情绪');
+    const why=$('#why');
+    $$('.choice').forEach(b=> b.onclick=()=>{ const ok=b.dataset.v===q.ans; b.classList.add(ok?'good':'bad'); bump('g5',ok); why.textContent=q.why; speak(ok?'你真棒！':'再想想'); setTimeout(()=>g5(),700); });
+    $('#next').onclick=()=>g5();
   }
 
-  function g11(){
-    // 消除坏情绪：点掉负面表情
-    const pos=['😊','🥰','😍','😄']; const neg=['😠','😢','😨','😞'];
-    const pool=[...pos,...neg].sort(()=>Math.random()-.5).slice(0,8);
-    const need=pool.filter(x=>neg.includes(x)).length; let killed=0;
-    $('#main').innerHTML=`<section class='sec'><div class='hero'><div class='ico'>🌟</div><h2>(11) 消除坏情绪</h2></div><div class='card'><p class='chip'>已消除：<b id='k'>0</b> / ${need} 个坏情绪</p><div class='choices' id='list'>${pool.map(e=>`<button class='choice' data-emo='${e}' style='font-size:28px;min-height:60px'>${e}</button>`).join('')}</div><div class='row' style='margin-top:8px'><button class='btn primary' id='again'>再来一轮</button></div></div></section>`;
-    $('#list').onclick=(ev)=>{ const b=ev.target.closest('.choice'); if(!b) return; const emo=b.dataset.emo; const isNeg=neg.includes(emo); if(isNeg){ b.classList.add('good'); b.disabled=true; killed++; $('#k').textContent=killed; bump('g11',true); if(killed===need) speak('太棒了，全部清除！'); }else{ b.classList.add('bad'); bump('g11',false); speak('这是好情绪，留下它'); setTimeout(()=>b.classList.remove('bad'),400); } };
-    $('#again').onclick=()=>g11();
-  }
-
-  // ====== 占位页面（其余9个游戏稍后补齐交互） ======
-  function coming(id,title,tip){
-    $('#main').innerHTML=`<section class='sec'><div class='hero'><div class='ico'>⏳</div><h2>${title}</h2></div><div class='card'><p style='color:var(--muted)'>${tip||'开发中：将加入图片/语音/拖拽/摄像头等交互。'}</p><div class='row'><button class='btn primary' id='back'>返回主页</button></div></div></section>`;
-    $('#back').onclick=()=>{location.hash='#home'};
+  // ========= g6 情绪强度排序 =========
+  function g6(){
+    const emoPool=['生气','害怕','伤心','高兴'];
+    const target = emoPool[Math.floor(Math.random()*emoPool.length)];
+    const mapping={
+      '生气':['轻微生气 😕','中等生气 😠','非常生气 🤬'],
+      '害怕':['有点怕 😟','有些怕 😨','非常怕 😱'],
+      '伤心':['有点难过 🙁','中等难过 😢','非常难过 😭'],
+      '高兴':['有点高兴 🙂','中等高兴 😊','非常高兴 😄']
+    };
+    const correct=['1','2','3'];
+    const items=mapping[target].map((t,i)=>({key:String(i+1),label:t})).sort(()=>Math.random()-.5);
+    $('#main').innerHTML=`<section class='sec'><div class='hero'><div class='ico'>📚</div><h2>(6) 情绪强度排序</h2></div><div class='card'><p class='chip'>请把「${target}」从轻微→中等→强烈排序</p><div id='list' style='display:flex;flex-direction:column;gap:8px'>${items.map(i=>`<div class='draggable' draggable='true' data-key='${i.key}' style='padding:12px;border-radius:12px;border:2px solid var(--line);background:#151d42;font-size:16px'>${i.label}</div>`).join('')}</div><div class='row' style='margin-top:8px'><span class='chip'>✅ ${(state.score.g6?.ok||0)}　❌ ${(state.score.g6?.ng||0)}　🏆 ${(state.score.g6?.best||0)}</span><button class='btn primary' id='check'>校验</button></div><p id='why' style='color:var(--muted);margin-top:6px'>提示：从“有点”到“非常”。</p></div></section>`;
+    const list=$('#list'); let dragEl=null;
+    list.addEventListener('dragstart',e=>{dragEl=e.target; e.dataTransfer.effectAllowed='move';});
+    list.addEventListener('dragover',e=>{e.preventDefault(); const after=[...list.children].find(ch=> e.clientY < ch.getBoundingClientRect().top + ch.getBoundingClientRect().height/2 ); if(after) list.insertBefore(dragEl,after); else list.appendChild(dragEl); });
+    list.addEventListener('dragend',()=>dragEl=null);
+    $('#check').onclick=()=>{ const keys=[...list.children].map(el=>el.dataset.key); const ok=JSON.stringify(keys)===JSON.stringify(correct); bump('g6',ok); speak(ok?'正确！从轻到强。':'顺序不对，再试试'); if(!ok){ list.classList.add('shake'); setTimeout(()=>list.classList.remove('shake'),400);} else { setTimeout(()=>g6(),700);} };
   }
 
   // 路由
-  const routes={
-    '#home':home,'':home,
-    '#report':report,
-    '#g1':g1,'#g2':()=>coming('g2','(2) 情绪配对','把相同情绪拖进目标框，训练“泛化”'),
-    '#g3':()=>coming('g3','(3) 情绪模仿(相机)','开启摄像头，跟随语音做表情，教师确认评分'),
-    '#g4':()=>coming('g4','(4) 情境配对','情境图片→选择情绪，并给出因果解释'),
-    '#g5':()=>coming('g5','(5) 情绪原因推测','从表情反推可能的原因'),
-    '#g6':()=>coming('g6','(6) 情绪强度排序','拖动卡片从轻微→中等→强烈'),
-    '#g7':()=>coming('g7','(7) 社会情境决策','遇到插队/打扰等，选择合适反应'),
-    '#g8':()=>coming('g8','(8) 情绪调节策略','深呼吸/数数/找大人/画画，提供分步指导'),
-    '#g9':()=>coming('g9','(9) 共情理解','读短故事，判断角色感受'),
-    '#g10':g10,'#g11':g11,'#g12':()=>coming('g12','(12) 情绪绘画表达','在人脸模板上绘制“今天的表情”并保存'),
-  };
+  const routes={'#home':home,'':home,'#report':report,'#g4':g4,'#g5':g5,'#g6':g6};
   function router(){ (routes[location.hash]||home)(); window.scrollTo({top:0,behavior:'instant'}); }
 
   // 全局按钮
   function bind(){
     $('#btnHome').onclick=()=>location.hash='#home';
     $('#btnReport').onclick=()=>location.hash='#report';
-    $('#btnExport').onclick=()=>download('report.csv', csv());
+    $('#btnExport').onclick=()=>download('stage2_report.csv', csv());
   }
 
   // 启动
